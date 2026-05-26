@@ -5,7 +5,8 @@ let imagebtn = document.querySelector("#image");
 let image = document.querySelector("#image img");
 let imageinput = document.querySelector("#image input");
 
-const Api_Url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyAeu87Uw1LQC06onH2NzyqD0vOCN-SBNko";
+const Api_Url = "https://api.groq.com/openai/v1/chat/completions";
+const Api_Key = "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"; // 🔑 Replace with your Groq API key
 
 let user = {
   message: null,
@@ -27,27 +28,22 @@ async function generateResponse(aiChatBox) {
   }
 
   const javaOnlyPrompt = `You are an expert assistant who answers only Java programming questions. 
-Use your knowledge to understand whether a question is about Java, even if it doesn’t mention "Java" directly. 
+Use your knowledge to understand whether a question is about Java, even if it doesn't mention "Java" directly. 
 If the question is related to Java (programming, syntax, libraries, tools, or concepts), answer it helpfully. 
 If the question is not related to Java, reply: "Sorry, I can only answer questions related to Java programming."
 
 Question: ${user.message}`;
 
-
-
   let RequestOption = {
     method: "POST",
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${Api_Key}`
+    },
     body: JSON.stringify({
-      contents: [
-        {
-          parts: user.file.data ? [
-            { "text": javaOnlyPrompt },
-            { "inline_data": user.file }
-          ] : [
-            { "text": javaOnlyPrompt }
-          ]
-        }
+      model: "llama3-8b-8192",
+      messages: [
+        { role: "user", content: javaOnlyPrompt }
       ]
     })
   };
@@ -55,7 +51,12 @@ Question: ${user.message}`;
   try {
     let response = await fetch(Api_Url, RequestOption);
     let data = await response.json();
-    let apiResponse = data.candidates[0].content.parts[0].text.replace(/\*\*(.*?)\*\*/g, "$1").trim();
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || "API request failed");
+    }
+
+    let apiResponse = data.choices[0].message.content.replace(/\*\*(.*?)\*\*/g, "$1").trim();
 
     text.innerHTML = `
       <pre style="white-space: pre-wrap; font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', 'Arial', sans-serif; line-height: 1.8; background: transparent; border: none;">
@@ -64,6 +65,7 @@ Question: ${user.message}`;
     `;
   } catch (error) {
     console.log(error);
+    text.innerHTML = `⚠️ Error: ${error.message}. Please try again.`;
   } finally {
     chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: "smooth" });
     image.src = `img.svg`;
